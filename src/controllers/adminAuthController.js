@@ -59,15 +59,20 @@ const createDefaultAdminIfNeeded = async () => {
 
 export const adminLogin = async (req, res) => {
   try {
+    console.log('📥 Login request received. Body:', req.body);
+
     const { username, password } = req.body;
 
     await createDefaultAdminIfNeeded();
 
     if (!username || !password) {
+      console.log('❌ Missing username or password');
       return res.status(400).json({ 
         message: 'Username and password are required' 
       });
     }
+
+    console.log(`🔍 Looking for admin with username: "${username}"`);
 
     const { data: admin, error } = await supabase
       .from('admins')
@@ -75,33 +80,40 @@ export const adminLogin = async (req, res) => {
       .eq('username', username)
       .single();
 
-    if (error || !admin) {
-      console.log('❌ Admin not found:', username);
-      return res.status(401).json({ 
-        message: 'Invalid username or password' 
-      });
+    if (error) {
+      console.log('❌ Supabase error:', error);
     }
 
+    if (!admin) {
+      console.log('❌ Admin not found for username:', username);
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    console.log('✅ Admin found:', { id: admin.id, username: admin.username, is_active: admin.is_active });
+    console.log('📦 Stored hash (first 20 chars):', admin.password_hash?.substring(0, 20));
+
     if (!admin.is_active) {
+      console.log('❌ Account is deactivated');
       return res.status(401).json({ 
         message: 'Account is deactivated. Please contact the system administrator.' 
       });
     }
 
+    console.log('🔐 Comparing password...');
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-    
+    console.log('🔐 Password match result:', isValidPassword);
+
     if (!isValidPassword) {
-      return res.status(401).json({ 
-        message: 'Invalid username or password' 
-      });
+      console.log('❌ Password mismatch');
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
 
+    // Update last login
     await supabase
       .from('admins')
       .update({ last_login: new Date().toISOString() })
       .eq('id', admin.id);
 
-    // ✅ IMPORTANT: Isama ang department sa JWT token
     const token = jwt.sign(
       { 
         userId: admin.id,
@@ -116,11 +128,7 @@ export const adminLogin = async (req, res) => {
 
     const { password_hash, ...adminData } = admin;
 
-    console.log('✅ Login successful:', { 
-      username: admin.username, 
-      role: admin.role,
-      department: admin.department 
-    });
+    console.log('✅ Login successful:', { username: admin.username, role: admin.role });
 
     res.status(200).json({
       message: 'Login successful',
@@ -136,7 +144,7 @@ export const adminLogin = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Admin login error:', err);
+    console.error('🔥 Admin login error:', err);
     res.status(500).json({ 
       message: 'Login failed. Please try again.' 
     });

@@ -9,7 +9,8 @@ import {
   getUserRequestDetails,
   getAllandallRequests,
   exportRequestsToCSV,
-  getPendingCount  // 🆕 ADD THIS
+  getPendingCount,
+  getTodayRequests  // 🆕 Import the new handler
 } from '../controllers/request.controller.js';
 import { authenticateToken as auth } from '../middleware/auth.middleware.js';
 
@@ -28,5 +29,8 @@ router.get('/export/csv', auth, exportRequestsToCSV);
 
 // 🆕 Pending count for sidebar badge
 router.get('/pending-count', auth, getPendingCount);
+
+// 🆕 Get today's requests for duplicate check (frontend dropdown disabling)
+router.get('/today', auth, getTodayRequests);
 
 export default router;

@@ -16,19 +16,18 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(requireAdmin);
 
-// Get all admin users
-router.get('/admin-users', getAllAdminUsers);
+// ✅ UPDATED: removed "/admin-users" prefix (base is /api/admin)
+// Now endpoints are:
+// GET    /api/admin/users
+// POST   /api/admin/users
+// PUT    /api/admin/users/:id
+// DELETE /api/admin/users/:id
+// POST   /api/admin/users/:id/reset-password
 
-// Add new admin user
-router.post('/admin-users', addAdminUser);
-
-// Update admin user
-router.put('/admin-users/:id', updateAdminUser);
-
-// Delete admin user
-router.delete('/admin-users/:id', deleteAdminUser);
-
-// Reset admin password
-router.post('/admin-users/:id/reset-password', resetAdminPassword);
+router.get('/users', getAllAdminUsers);
+router.post('/users', addAdminUser);
+router.put('/users/:id', updateAdminUser);
+router.delete('/users/:id', deleteAdminUser);
+router.post('/users/:id/reset-password', resetAdminPassword);
 
 export default router;

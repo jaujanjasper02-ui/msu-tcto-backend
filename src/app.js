@@ -12,10 +12,16 @@ import adminUsersRoutes from './routes/adminUsersRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import queueRoutes from './routes/queue.routes.js';
 
+// 🆕 PUBLIC SETTINGS — No authentication required
+import { getPublicSettings } from './controllers/settingsController.js';
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// 🆕 PUBLIC SETTINGS ENDPOINT — No auth required
+app.get('/api/public/settings', getPublicSettings);
 
 // ✅ IMPORTANTE: UNAHIN ANG QUEUE ROUTES
 app.use('/api/queue', queueRoutes);
@@ -30,6 +36,6 @@ app.use('/api', emailLogsRoutes);            // /api/email-logs
 app.use('/api', activityLogsRoutes);         // /api/activity-logs
 app.use('/api/requests', dashboardRoutes);   // /api/requests/dashboard-stats
 app.use('/api/admin', adminUsersRoutes);     // /api/admin/users
-app.use('/api/admin', settingsRoutes);       // ✅ /api/admin/settings
+app.use('/api/admin', settingsRoutes);       // /api/admin/settings
 
 export default app;

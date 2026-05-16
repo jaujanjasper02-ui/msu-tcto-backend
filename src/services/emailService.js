@@ -7,6 +7,22 @@ import {
 import { supabase } from '../config/supabase.js';
 
 // =============================================
+// 🆕 HELPER: GET EMAIL NOTIFICATION SETTINGS
+// =============================================
+const getEmailNotificationSettings = async () => {
+  const { data: settings } = await supabase
+    .from('system_settings')
+    .select('email_notifications')
+    .single();
+
+  return settings?.email_notifications || {
+    on_new_request: true,
+    on_status_change: true,
+    on_completion: true
+  };
+};
+
+// =============================================
 // SAVE EMAIL LOG TO DATABASE
 // =============================================
 const saveEmailLog = async (logData) => {
@@ -24,17 +40,53 @@ const saveEmailLog = async (logData) => {
 };
 
 // =============================================
-// SEND STATUS UPDATE EMAIL
+// 🆕 SEND STATUS UPDATE EMAIL (WITH NOTIFICATION CHECK)
 // =============================================
 export const sendStatusEmail = async (request, newStatus, reason = null) => {
   let logData = {
     request_id: request.id,
     email_type: newStatus,
-    status: 'failed', // Default to failed, will update if successful
+    status: 'failed',
     sent_at: new Date().toISOString()
   };
 
   try {
+    // 🆕 CHECK EMAIL NOTIFICATION SETTINGS
+    const emailSettings = await getEmailNotificationSettings();
+
+    // 🆕 Kung ang newStatus ay 'approved' o 'processing' → tingnan ang on_status_change
+    if ((newStatus === 'approved' || newStatus === 'processing') && !emailSettings.on_status_change) {
+      console.log(`📧 on_status_change is OFF — skipping email for ${newStatus}`);
+      logData.recipient_email = 'none';
+      logData.subject = `Skipped - on_status_change disabled`;
+      logData.status = 'sent';
+      logData.error_message = 'Notification disabled in settings';
+      await saveEmailLog(logData);
+      return { success: true, message: 'Notification disabled in settings' };
+    }
+
+    // 🆕 Kung ang newStatus ay 'ready' → tingnan ang on_completion
+    if (newStatus === 'ready' && !emailSettings.on_completion) {
+      console.log('📧 on_completion is OFF — skipping Ready for Pickup email');
+      logData.recipient_email = 'none';
+      logData.subject = 'Skipped - on_completion disabled';
+      logData.status = 'sent';
+      logData.error_message = 'Notification disabled in settings';
+      await saveEmailLog(logData);
+      return { success: true, message: 'Notification disabled in settings' };
+    }
+
+    // 🆕 Kung ang newStatus ay 'rejected' → tingnan ang on_status_change (kasama ang rejection)
+    if (newStatus === 'rejected' && !emailSettings.on_status_change) {
+      console.log('📧 on_status_change is OFF — skipping Rejection email');
+      logData.recipient_email = 'none';
+      logData.subject = 'Skipped - on_status_change disabled';
+      logData.status = 'sent';
+      logData.error_message = 'Notification disabled in settings';
+      await saveEmailLog(logData);
+      return { success: true, message: 'Notification disabled in settings' };
+    }
+
     // Get user's email from database
     const { data: user, error } = await supabase
       .from('users')
@@ -72,6 +124,7 @@ export const sendStatusEmail = async (request, newStatus, reason = null) => {
 
     switch(newStatus) {
       case 'approved':
+      case 'processing':
         emailContent = getApprovedTemplate(emailData);
         break;
       case 'ready':
@@ -81,7 +134,7 @@ export const sendStatusEmail = async (request, newStatus, reason = null) => {
         emailContent = getRejectedTemplate(emailData);
         break;
       default:
-        return; // Don't send for other statuses
+        return { success: false, error: 'Unknown status' };
     }
 
     // Update log data with email info

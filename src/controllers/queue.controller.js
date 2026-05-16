@@ -1,13 +1,20 @@
 import { supabase } from '../config/supabase.js';
 
-// =============================================
-// DAILY LIMIT CONFIGURATION
-// =============================================
-const DAILY_LIMIT = 100;
+// 🆕 HELPER: GET SETTINGS FROM DATABASE
+const getSystemSettings = async () => {
+  const { data: settings } = await supabase
+    .from('system_settings')
+    .select('daily_queue_limit, avg_processing_time, office_hours')
+    .single();
 
-// =============================================
+  return {
+    dailyLimit: settings?.daily_queue_limit || 100,
+    avgProcessingTime: settings?.avg_processing_time || 10,
+    officeHours: settings?.office_hours || 'Monday to Friday, 8:00 AM - 4:45 PM'
+  };
+};
+
 // HELPER: GET PHILIPPINE DATE
-// =============================================
 const getPHDate = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -16,15 +23,13 @@ const getPHDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-// =============================================
 // GET QUEUE STATUS (for Dashboard)
-// ✅ DAPAT WALANG DEPARTMENT FILTER - GLOBAL QUEUE
-// =============================================
 export const getQueueStatus = async (req, res) => {
   try {
     const today = getPHDate();
+    const { dailyLimit, avgProcessingTime } = await getSystemSettings();
     
-    // Get current serving (the smallest queue_number with status processing or ready)
+    // Get current serving
     const { data: currentServing, error: servingError } = await supabase
       .from('requests')
       .select('queue_number')
@@ -35,7 +40,7 @@ export const getQueueStatus = async (req, res) => {
     
     if (servingError) throw servingError;
     
-    // Get last issued queue number (largest queue_number for today)
+    // Get last issued queue number
     const { data: lastQueue, error: lastError } = await supabase
       .from('requests')
       .select('queue_number')
@@ -46,7 +51,7 @@ export const getQueueStatus = async (req, res) => {
     
     if (lastError) throw lastError;
     
-    // ✅ IDAGDAG: Get pending count (for wait time calculation)
+    // Get pending count
     const { count: pendingCount, error: pendingError } = await supabase
       .from('requests')
       .select('*', { count: 'exact', head: true })
@@ -63,21 +68,15 @@ export const getQueueStatus = async (req, res) => {
     
     if (countError) throw countError;
     
-    console.log('📊 Queue Status Response:', {
-      current_serving: currentServing?.[0]?.queue_number || null,
-      last_queue_number: lastQueue?.[0]?.queue_number || null,
-      pending_count: pendingCount || 0,
-      total_requests_today: totalToday || 0
-    });
-    
     res.json({
       success: true,
       current_serving: currentServing?.[0]?.queue_number || null,
       last_queue_number: lastQueue?.[0]?.queue_number || null,
       pending_count: pendingCount || 0,
       total_requests_today: totalToday || 0,
-      queue_limit: DAILY_LIMIT,
-      is_limit_reached: (totalToday || 0) >= DAILY_LIMIT,
+      queue_limit: dailyLimit,
+      avg_processing_time: avgProcessingTime,
+      is_limit_reached: (totalToday || 0) >= dailyLimit,
       last_updated: new Date().toISOString()
     });
     
