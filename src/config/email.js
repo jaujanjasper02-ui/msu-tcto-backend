@@ -23,10 +23,13 @@ console.log('- EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Missing')
 console.log('- EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Missing');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  family: 4, // ✅ FORCE IPv4 (IMPORTANT FIX)
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+    pass: process.env.EMAIL_PASS
   }
 });
 
