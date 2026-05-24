@@ -471,9 +471,6 @@ export const getAllRequests = async (req, res) => {
 
     let query = supabase.from('requests').select('*', { count: 'exact' });
 
-    if (user.role !== 'super_admin') {
-      query = query.eq('department', user.department);
-    }
 
     if (status && status !== 'all') {
       query = query.eq('status', status);

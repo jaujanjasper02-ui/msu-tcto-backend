@@ -164,27 +164,35 @@ export const getDashboardStats = async (req, res) => {
     ];
 
     // =============================================
-    // WEEKLY ACTIVITY (Last 7 days)
+    // WEEKLY ACTIVITY (Last 7 days) - timezone-safe using UTC day boundaries
     // =============================================
-    const today = new Date();
     const weeklyData = [];
+
+    // labels aligned with Mon..Sun for the last 7 UTC days
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+    const now = new Date();
+    // Start from 6 days ago (UTC midnight), end at today (UTC midnight)
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      
-      const nextDate = new Date(date);
-      nextDate.setDate(date.getDate() + 1);
-      
+      const start = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0, 0, 0, 0
+      ));
+      start.setUTCDate(start.getUTCDate() - i);
+
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 1);
+
       const count = requests?.filter(req => {
         const reqDate = new Date(req.date_sent);
-        return reqDate >= date && reqDate < nextDate;
+        return reqDate >= start && reqDate < end;
       }).length || 0;
-      
+
       weeklyData.push(count);
     }
+
 
     // =============================================
     // MONTHLY ACTIVITY (Last 12 months)
