@@ -26,13 +26,15 @@ const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   secure: false,
-  family: 4, // ✅ FORCE IPv4 (IMPORTANT FIX)
+
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
-});
+    pass: process.env.EMAIL_PASSWORD,
+  },
 
+  logger: true,
+  debug: true,
+});
 transporter.verify((error, success) => {
   if (error) {
     console.log('❌ Email server error:', error.message);
@@ -41,27 +43,36 @@ transporter.verify((error, success) => {
   }
 });
 
-export const sendEmail = async (to, subject, html) => {
+export const sendEmail = async () => {
   try {
-    const mailOptions = {
-      from: `"MSU-TCTO Registrar" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html
-    };
+    console.log("Attempting SMTP connection...");
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${to}:`, info.messageId);
-    
-    return {
-      success: true,
-      messageId: info.messageId
-    };
+    // Verify SMTP first
+    await transporter.verify();
+
+    console.log("SMTP verification successful");
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: "yourtestemail@gmail.com",
+      subject: "Test Email",
+      text: "Hello from Render",
+    });
+
+    console.log("Email sent successfully");
+    console.log("Message ID:", info.messageId);
+    console.log("Response:", info.response);
+
   } catch (error) {
-    console.error('❌ Error sending email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error("EMAIL ERROR START");
+    console.error(error);
+
+    // More detailed logging
+    console.error("Error message:", error.message);
+    console.error("Error code:", error.code);
+    console.error("SMTP response:", error.response);
+    console.error("Stack:", error.stack);
+
+    console.error("EMAIL ERROR END");
   }
 };
